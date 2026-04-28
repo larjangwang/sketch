@@ -17,7 +17,9 @@ _RETRY_DELAY_SECONDS = 2.0
 
 
 class GeminiError(RuntimeError):
-    pass
+    def __init__(self, message: str, http_status: int = 0) -> None:
+        super().__init__(message)
+        self.http_status = http_status
 
 
 SKETCH_EXTRACTION_PROMPT = """
@@ -110,10 +112,10 @@ def _call_gemini(api_key: str, model: str, image_data: str, mime_type: str) -> d
             message = error.read().decode("utf-8", errors="replace")
             if error.code in _RETRYABLE_CODES and attempt < _MAX_RETRIES:
                 wait = _RETRY_DELAY_SECONDS * (2 ** (attempt - 1))
-                last_error = GeminiError(f"{model} error {error.code} (attempt {attempt}/{_MAX_RETRIES})")
+                last_error = GeminiError(f"{model} error {error.code} (attempt {attempt}/{_MAX_RETRIES})", http_status=error.code)
                 time.sleep(wait)
                 continue
-            raise GeminiError(f"{model} error {error.code}: {message}") from error
+            raise GeminiError(f"{model} error {error.code}: {message}", http_status=error.code) from error
         except urllib.error.URLError as error:
             raise GeminiError(f"Cannot reach Gemini API: {error.reason}") from error
     raise last_error or GeminiError(f"{model} failed after all retries")
@@ -137,6 +139,9 @@ def extract_sketch_with_gemini(api_key: str, image_path: Path, model: str = DEFA
             break
         except GeminiError as error:
             last_error = error
+            # Only fallback to next model on overload/server errors, not on 4xx client errors
+            if error.http_status not in _RETRYABLE_CODES and error.http_status != 0:
+                raise
             continue
     else:
         raise last_error or GeminiError("All Gemini models failed")
