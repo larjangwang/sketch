@@ -176,7 +176,7 @@ class DrawingAssistantApp(tk.Tk):
         ttk.Entry(tab, textvariable=self.api_key_var, width=80, show="*").grid(row=2, column=1, sticky=tk.EW, pady=4)
 
         ttk.Label(tab, text="Gemini Model").grid(row=3, column=0, sticky=tk.W, pady=4)
-        self.model_var = tk.StringVar(value=self.settings.get("gemini_model", "gemini-2.5-flash"))
+        self.model_var = tk.StringVar(value=self.settings.get("gemini_model", "gemini-1.5-flash"))
         ttk.Entry(tab, textvariable=self.model_var, width=80).grid(row=3, column=1, sticky=tk.EW, pady=4)
 
         ttk.Button(tab, text="Save Settings", style="Accent.TButton", command=self._save_settings).grid(row=4, column=1, sticky=tk.E, pady=(14, 0))

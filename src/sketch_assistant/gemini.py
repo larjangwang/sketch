@@ -9,7 +9,7 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
-from sketch_assistant.config import DEFAULT_MODEL
+from sketch_assistant.config import DEFAULT_MODEL, FALLBACK_MODELS
 
 _RETRYABLE_CODES = {429, 500, 502, 503, 504}
 _MAX_RETRIES = 3
@@ -77,14 +77,7 @@ def mock_sketch_analysis(image_path: Path) -> dict[str, Any]:
     }
 
 
-def extract_sketch_with_gemini(api_key: str, image_path: Path, model: str = DEFAULT_MODEL) -> dict[str, Any]:
-    if not api_key.strip():
-        return mock_sketch_analysis(image_path)
-    if not image_path.exists():
-        raise GeminiError(f"Image not found: {image_path}")
-
-    mime_type = mimetypes.guess_type(str(image_path))[0] or "application/octet-stream"
-    image_data = base64.b64encode(image_path.read_bytes()).decode("ascii")
+def _call_gemini(api_key: str, model: str, image_data: str, mime_type: str) -> dict:
     endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key.strip()}"
     payload = {
         "contents": [
@@ -102,7 +95,6 @@ def extract_sketch_with_gemini(api_key: str, image_path: Path, model: str = DEFA
         },
     }
     request_data = json.dumps(payload).encode("utf-8")
-
     last_error: Exception | None = None
     for attempt in range(1, _MAX_RETRIES + 1):
         req = urllib.request.Request(
@@ -113,20 +105,41 @@ def extract_sketch_with_gemini(api_key: str, image_path: Path, model: str = DEFA
         )
         try:
             with urllib.request.urlopen(req, timeout=90) as response:
-                response_payload = json.loads(response.read().decode("utf-8"))
-            break  # success
+                return json.loads(response.read().decode("utf-8"))
         except urllib.error.HTTPError as error:
             message = error.read().decode("utf-8", errors="replace")
             if error.code in _RETRYABLE_CODES and attempt < _MAX_RETRIES:
                 wait = _RETRY_DELAY_SECONDS * (2 ** (attempt - 1))
-                last_error = GeminiError(f"Gemini API error {error.code} (attempt {attempt}/{_MAX_RETRIES}): {message}")
+                last_error = GeminiError(f"{model} error {error.code} (attempt {attempt}/{_MAX_RETRIES})")
                 time.sleep(wait)
                 continue
-            raise GeminiError(f"Gemini API error {error.code}: {message}") from error
+            raise GeminiError(f"{model} error {error.code}: {message}") from error
         except urllib.error.URLError as error:
             raise GeminiError(f"Cannot reach Gemini API: {error.reason}") from error
+    raise last_error or GeminiError(f"{model} failed after all retries")
+
+
+def extract_sketch_with_gemini(api_key: str, image_path: Path, model: str = DEFAULT_MODEL) -> dict[str, Any]:
+    if not api_key.strip():
+        return mock_sketch_analysis(image_path)
+    if not image_path.exists():
+        raise GeminiError(f"Image not found: {image_path}")
+
+    mime_type = mimetypes.guess_type(str(image_path))[0] or "application/octet-stream"
+    image_data = base64.b64encode(image_path.read_bytes()).decode("ascii")
+
+    # Build the list of models to try: requested model first, then fallbacks (deduped)
+    models_to_try = [model] + [m for m in FALLBACK_MODELS if m != model]
+    last_error: Exception | None = None
+    for candidate in models_to_try:
+        try:
+            response_payload = _call_gemini(api_key, candidate, image_data, mime_type)
+            break
+        except GeminiError as error:
+            last_error = error
+            continue
     else:
-        raise last_error or GeminiError("Gemini API failed after all retries")
+        raise last_error or GeminiError("All Gemini models failed")
 
     candidates = response_payload.get("candidates") or []
     if not candidates:
