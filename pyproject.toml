@@ -1,0 +1,18 @@
+[project]
+name = "ai-construction-drawing-assistant"
+version = "0.1.0"
+description = "Local-first Windows desktop assistant for AI-assisted Thai construction drawing preparation."
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+ai-construction-drawing = "sketch_assistant.__main__:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+sketch_assistant = ["resources/checklists/*.json"]

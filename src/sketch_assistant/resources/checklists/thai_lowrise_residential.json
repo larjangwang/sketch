@@ -1,0 +1,53 @@
+[
+  {
+    "id": "general",
+    "title": "ข้อมูลทั่วไปและเอกสารประกอบ",
+    "items": [
+      {"id": "general-title-block", "title": "Title block ระบุชื่อโครงการ เจ้าของ ผู้ออกแบบ เลขที่แบบ มาตราส่วน และวันที่"},
+      {"id": "general-drawing-index", "title": "สารบัญแบบและรายการเลขที่แบบครบทุก discipline"},
+      {"id": "general-professional-review", "title": "ระบุผู้ตรวจ/ผู้รับผิดชอบตามวิชาชีพและสถานะการ review"},
+      {"id": "general-scale-north", "title": "แบบที่ต้องใช้มีมาตราส่วน ทิศเหนือ และสัญลักษณ์ครบ"}
+    ]
+  },
+  {
+    "id": "architecture",
+    "title": "งานสถาปัตยกรรม",
+    "items": [
+      {"id": "arch-site-plan", "title": "ผังบริเวณ แสดงแนวเขต ระยะร่น ทางเข้า และตำแหน่งอาคาร"},
+      {"id": "arch-floor-plans", "title": "แบบแปลนครบทุกชั้น พร้อมชื่อห้อง ขนาด และระดับ"},
+      {"id": "arch-elevations", "title": "รูปด้านอย่างน้อยตามทิศหลักที่เกี่ยวข้อง"},
+      {"id": "arch-sections", "title": "รูปตัดแสดงระดับ ความสูง และส่วนประกอบอาคาร"},
+      {"id": "arch-details", "title": "รูปขยาย/รายละเอียดที่จำเป็น เช่น บันได ห้องน้ำ ประตู หน้าต่าง"},
+      {"id": "arch-schedules", "title": "ตารางพื้นที่ ตารางประตูหน้าต่าง และรายการวัสดุหลัก"}
+    ]
+  },
+  {
+    "id": "structure",
+    "title": "งานโครงสร้าง",
+    "items": [
+      {"id": "str-foundation", "title": "แบบฐานรากและรายละเอียดโครงสร้างฐานราก"},
+      {"id": "str-framing", "title": "ผังคาน เสา พื้น และ grid โครงสร้าง"},
+      {"id": "str-rebar", "title": "รายละเอียดเหล็กเสริมและหมายเหตุโครงสร้าง"},
+      {"id": "str-engineer-review", "title": "สถานะการ review โดยวิศวกรโครงสร้าง"}
+    ]
+  },
+  {
+    "id": "mep",
+    "title": "งานระบบไฟฟ้า ประปา และสุขาภิบาล",
+    "items": [
+      {"id": "elec-lighting-power", "title": "แบบไฟฟ้าแสงสว่าง เต้ารับ และตำแหน่งอุปกรณ์"},
+      {"id": "elec-panel-schedule", "title": "ตารางโหลด แผงไฟ และ single-line diagram เบื้องต้น"},
+      {"id": "plumb-water", "title": "แบบระบบประปา เส้นท่อ และตำแหน่งสุขภัณฑ์"},
+      {"id": "san-drainage", "title": "แบบสุขาภิบาล ท่อน้ำทิ้ง ท่ออากาศ และระบบบำบัดที่เกี่ยวข้อง"}
+    ]
+  },
+  {
+    "id": "built-in-spec",
+    "title": "Built-in และรายการประกอบแบบ",
+    "items": [
+      {"id": "builtin-details", "title": "แบบ built-in/งานตกแต่งภายในที่เกี่ยวข้องกับงานก่อสร้าง"},
+      {"id": "spec-general", "title": "รายการประกอบแบบและข้อกำหนดวัสดุ/วิธี施工ฉบับร่าง"},
+      {"id": "export-pdf-dxf", "title": "Export package มี PDF summary, checklist, และ DXF draft"}
+    ]
+  }
+]
