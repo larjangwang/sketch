@@ -53,6 +53,19 @@ class DrawingAssistantApp(tk.Tk):
         style.configure("Treeview", rowheight=28, font=("Segoe UI", 9))
         style.configure("Treeview.Heading", font=("Segoe UI", 9, "bold"))
 
+    @staticmethod
+    def _add_text_context_menu(widget: tk.Text) -> None:
+        """Add right-click copy/select-all menu to any tk.Text widget."""
+        menu = tk.Menu(widget, tearoff=0)
+        menu.add_command(label="Copy", command=lambda: widget.event_generate("<<Copy>>"))
+        menu.add_command(label="Select All", command=lambda: (widget.tag_add(tk.SEL, "1.0", tk.END), widget.mark_set(tk.INSERT, "1.0")))
+
+        def _show_menu(event: tk.Event) -> None:
+            menu.tk_popup(event.x_root, event.y_root)
+
+        widget.bind("<Button-3>", _show_menu)
+        widget.bind("<Control-a>", lambda e: (widget.tag_add(tk.SEL, "1.0", tk.END), "break"))
+
     def _build_layout(self) -> None:
         root = ttk.Frame(self, padding=16)
         root.pack(fill=tk.BOTH, expand=True)
@@ -100,6 +113,8 @@ class DrawingAssistantApp(tk.Tk):
         ttk.Label(tab, text="Project Overview", style="PanelTitle.TLabel").pack(anchor=tk.W)
         self.project_details = tk.Text(tab, height=12, wrap=tk.WORD, font=("Segoe UI", 10), relief=tk.FLAT, padx=12, pady=12)
         self.project_details.pack(fill=tk.X, pady=(10, 14))
+        self._add_text_context_menu(self.project_details)
+        self._add_text_context_menu(self.project_details)
         ttk.Label(tab, text="Recent Artifacts", style="PanelTitle.TLabel").pack(anchor=tk.W)
         self.artifact_tree = ttk.Treeview(tab, columns=("kind", "created"), show="tree headings", height=12)
         self.artifact_tree.heading("#0", text="ไฟล์")
@@ -136,6 +151,7 @@ class DrawingAssistantApp(tk.Tk):
         ttk.Label(right, text="AI Extraction Result", style="PanelTitle.TLabel").pack(anchor=tk.W)
         self.ai_result_text = tk.Text(right, wrap=tk.WORD, font=("Consolas", 10), relief=tk.FLAT, padx=12, pady=12)
         self.ai_result_text.pack(fill=tk.BOTH, expand=True, pady=(8, 0))
+        self._add_text_context_menu(self.ai_result_text)
 
     def _build_checklist_tab(self) -> None:
         tab = ttk.Frame(self.notebook, padding=14)
@@ -162,6 +178,7 @@ class DrawingAssistantApp(tk.Tk):
         ttk.Button(tab, text="Create Draft Export Package", style="Accent.TButton", command=self._export_package).pack(anchor=tk.W)
         self.export_text = tk.Text(tab, height=18, wrap=tk.WORD, font=("Consolas", 10), relief=tk.FLAT, padx=12, pady=12)
         self.export_text.pack(fill=tk.BOTH, expand=True, pady=(14, 0))
+        self._add_text_context_menu(self.export_text)
 
     def _build_settings_tab(self) -> None:
         tab = ttk.Frame(self.notebook, padding=14)
