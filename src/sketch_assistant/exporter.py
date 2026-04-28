@@ -96,61 +96,98 @@ def _write_checklist_csv(path: Path, checklist_items: list[dict[str, Any]], stat
 
 
 def _write_placeholder_dxf(path: Path, project: dict[str, Any]) -> None:
-    project_name = project["name"].replace("\n", " ")[:80]
-    path.write_text(
-        f"""0
-SECTION
-2
-HEADER
-0
-ENDSEC
-0
-SECTION
-2
-ENTITIES
-0
-LWPOLYLINE
-8
-A-WALL
-90
-4
-70
-1
-10
-0
-20
-0
-10
-12000
-20
-0
-10
-12000
-20
-8000
-10
-0
-20
-8000
-0
-TEXT
-8
-A-ANNO
-10
-500
-20
-8500
-40
-350
-1
-{project_name} - concept placeholder
-0
-ENDSEC
-0
-EOF
-""",
-        encoding="utf-8",
-    )
+    """Write a valid DXF R12 (AC1009) placeholder file that AutoCAD can open."""
+    project_name = project["name"].replace("\n", " ").replace("(", "").replace(")", "")[:60]
+    title_text = f"{project_name} - concept placeholder"
+    lines = [
+        "  0", "SECTION",
+        "  2", "HEADER",
+        "  9", "$ACADVER",
+        "  1", "AC1009",
+        "  9", "$INSBASE",
+        " 10", "0.0",
+        " 20", "0.0",
+        " 30", "0.0",
+        "  9", "$EXTMIN",
+        " 10", "0.0",
+        " 20", "0.0",
+        " 30", "0.0",
+        "  9", "$EXTMAX",
+        " 10", "12000.0",
+        " 20", "8000.0",
+        " 30", "0.0",
+        "  9", "$LUNITS",
+        " 70", "4",
+        "  9", "$LUPREC",
+        " 70", "3",
+        "  0", "ENDSEC",
+        # TABLES
+        "  0", "SECTION",
+        "  2", "TABLES",
+        "  0", "TABLE",
+        "  2", "LTYPE",
+        " 70", "1",
+        "  0", "LTYPE",
+        "  2", "CONTINUOUS",
+        " 70", "0",
+        "  3", "Solid line",
+        " 72", "65",
+        " 73", "0",
+        " 40", "0.0",
+        "  0", "ENDTAB",
+        "  0", "TABLE",
+        "  2", "LAYER",
+        " 70", "3",
+        "  0", "LAYER",
+        "  2", "0",
+        " 70", "0",
+        " 62", "7",
+        "  6", "CONTINUOUS",
+        "  0", "LAYER",
+        "  2", "A-WALL",
+        " 70", "0",
+        " 62", "1",
+        "  6", "CONTINUOUS",
+        "  0", "LAYER",
+        "  2", "A-ANNO",
+        " 70", "0",
+        " 62", "3",
+        "  6", "CONTINUOUS",
+        "  0", "ENDTAB",
+        "  0", "ENDSEC",
+        # BLOCKS
+        "  0", "SECTION",
+        "  2", "BLOCKS",
+        "  0", "ENDSEC",
+        # ENTITIES
+        "  0", "SECTION",
+        "  2", "ENTITIES",
+        # Bottom edge
+        "  0", "LINE", "  8", "A-WALL",
+        " 10", "0.0", " 20", "0.0", " 30", "0.0",
+        " 11", "12000.0", " 21", "0.0", " 31", "0.0",
+        # Right edge
+        "  0", "LINE", "  8", "A-WALL",
+        " 10", "12000.0", " 20", "0.0", " 30", "0.0",
+        " 11", "12000.0", " 21", "8000.0", " 31", "0.0",
+        # Top edge
+        "  0", "LINE", "  8", "A-WALL",
+        " 10", "12000.0", " 20", "8000.0", " 30", "0.0",
+        " 11", "0.0", " 21", "8000.0", " 31", "0.0",
+        # Left edge
+        "  0", "LINE", "  8", "A-WALL",
+        " 10", "0.0", " 20", "8000.0", " 30", "0.0",
+        " 11", "0.0", " 21", "0.0", " 31", "0.0",
+        # Title text
+        "  0", "TEXT", "  8", "A-ANNO",
+        " 10", "500.0", " 20", "8500.0", " 30", "0.0",
+        " 40", "350.0",
+        "  1", title_text,
+        "  0", "ENDSEC",
+        "  0", "EOF",
+        "",
+    ]
+    path.write_text("\r\n".join(lines), encoding="ascii", errors="replace")
 
 
 def _write_minimal_pdf(path: Path, project: dict[str, Any], checklist_items: list[dict[str, Any]], status_map: dict[str, dict[str, str]]) -> None:
