@@ -187,7 +187,7 @@ def _write_placeholder_dxf(path: Path, project: dict[str, Any]) -> None:
         "  0", "EOF",
         "",
     ]
-    path.write_text("\r\n".join(lines), encoding="ascii", errors="replace")
+    path.write_bytes("\r\n".join(lines).encode("ascii", errors="replace"))
 
 
 def _write_minimal_pdf(path: Path, project: dict[str, Any], checklist_items: list[dict[str, Any]], status_map: dict[str, dict[str, str]]) -> None:
