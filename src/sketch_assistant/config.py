@@ -8,7 +8,7 @@ from typing import Any
 APP_NAME = "AI Construction Drawing"
 APP_FOLDER_NAME = "AI-Construction-Drawing"
 DEFAULT_MODEL = "gemini-1.5-flash"
-FALLBACK_MODELS = ["gemini-1.5-flash", "gemini-1.5-pro"]
+FALLBACK_MODELS = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-flash-8b"]
 
 
 def documents_dir() -> Path:
