@@ -173,7 +173,27 @@ class DrawingAssistantApp(tk.Tk):
 
         ttk.Label(tab, text="Gemini API Key").grid(row=2, column=0, sticky=tk.W, pady=4)
         self.api_key_var = tk.StringVar(value=self.settings.get("gemini_api_key", ""))
-        ttk.Entry(tab, textvariable=self.api_key_var, width=80, show="*").grid(row=2, column=1, sticky=tk.EW, pady=4)
+        api_key_entry = ttk.Entry(tab, textvariable=self.api_key_var, width=80, show="*")
+        api_key_entry.grid(row=2, column=1, sticky=tk.EW, pady=4)
+
+        def _paste_api_key(event=None):
+            try:
+                text = api_key_entry.clipboard_get()
+                api_key_entry.delete(0, tk.END)
+                api_key_entry.insert(0, text.strip())
+            except tk.TclError:
+                pass
+            return "break"
+
+        def _show_api_key_menu(event):
+            menu = tk.Menu(api_key_entry, tearoff=0)
+            menu.add_command(label="Paste", command=_paste_api_key)
+            menu.add_command(label="Clear", command=lambda: self.api_key_var.set(""))
+            menu.tk_popup(event.x_root, event.y_root)
+
+        api_key_entry.bind("<Control-v>", _paste_api_key)
+        api_key_entry.bind("<Control-V>", _paste_api_key)
+        api_key_entry.bind("<Button-3>", _show_api_key_menu)
 
         ttk.Label(tab, text="Gemini Model").grid(row=3, column=0, sticky=tk.W, pady=4)
         self.model_var = tk.StringVar(value=self.settings.get("gemini_model", "gemini-1.5-flash"))
