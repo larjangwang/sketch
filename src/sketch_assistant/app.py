@@ -294,7 +294,7 @@ class DrawingAssistantApp(tk.Tk):
         image_path = Path(artifact["path"])
         api_key = self.api_key_var.get().strip()
         model = self.model_var.get().strip() or "gemini-2.5-flash"
-        self._set_ai_result("กำลังอ่าน sketch ด้วย Gemini/Mock worker...\n")
+        self._set_ai_result("กำลังอ่าน sketch ด้วย Gemini...\n(ถ้า Gemini ยุ่งจะลองใหม่อัตโนมัติสูงสุด 3 ครั้ง)\n")
 
         def worker() -> None:
             try:

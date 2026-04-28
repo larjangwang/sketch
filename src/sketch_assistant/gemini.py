@@ -3,12 +3,17 @@ from __future__ import annotations
 import base64
 import json
 import mimetypes
+import time
 import urllib.error
 import urllib.request
 from pathlib import Path
 from typing import Any
 
 from sketch_assistant.config import DEFAULT_MODEL
+
+_RETRYABLE_CODES = {429, 500, 502, 503, 504}
+_MAX_RETRIES = 3
+_RETRY_DELAY_SECONDS = 2.0
 
 
 class GeminiError(RuntimeError):
@@ -96,20 +101,32 @@ def extract_sketch_with_gemini(api_key: str, image_path: Path, model: str = DEFA
             "response_mime_type": "application/json",
         },
     }
-    request = urllib.request.Request(
-        endpoint,
-        data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-    try:
-        with urllib.request.urlopen(request, timeout=90) as response:
-            response_payload = json.loads(response.read().decode("utf-8"))
-    except urllib.error.HTTPError as error:
-        message = error.read().decode("utf-8", errors="replace")
-        raise GeminiError(f"Gemini API error {error.code}: {message}") from error
-    except urllib.error.URLError as error:
-        raise GeminiError(f"Cannot reach Gemini API: {error.reason}") from error
+    request_data = json.dumps(payload).encode("utf-8")
+
+    last_error: Exception | None = None
+    for attempt in range(1, _MAX_RETRIES + 1):
+        req = urllib.request.Request(
+            endpoint,
+            data=request_data,
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=90) as response:
+                response_payload = json.loads(response.read().decode("utf-8"))
+            break  # success
+        except urllib.error.HTTPError as error:
+            message = error.read().decode("utf-8", errors="replace")
+            if error.code in _RETRYABLE_CODES and attempt < _MAX_RETRIES:
+                wait = _RETRY_DELAY_SECONDS * (2 ** (attempt - 1))
+                last_error = GeminiError(f"Gemini API error {error.code} (attempt {attempt}/{_MAX_RETRIES}): {message}")
+                time.sleep(wait)
+                continue
+            raise GeminiError(f"Gemini API error {error.code}: {message}") from error
+        except urllib.error.URLError as error:
+            raise GeminiError(f"Cannot reach Gemini API: {error.reason}") from error
+    else:
+        raise last_error or GeminiError("Gemini API failed after all retries")
 
     candidates = response_payload.get("candidates") or []
     if not candidates:
