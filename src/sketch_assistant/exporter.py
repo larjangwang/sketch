@@ -95,98 +95,133 @@ def _write_checklist_csv(path: Path, checklist_items: list[dict[str, Any]], stat
             writer.writerow([row["section"], row["id"], row["title"], status.get("status", "pending"), status.get("note", "")])
 
 
+def _dxf_line(layer: str, x1: float, y1: float, x2: float, y2: float) -> list[str]:
+    return ["  0", "LINE", "  8", layer,
+            " 10", f"{x1:.1f}", " 20", f"{y1:.1f}", " 30", "0.0",
+            " 11", f"{x2:.1f}", " 21", f"{y2:.1f}", " 31", "0.0"]
+
+
+def _dxf_text(layer: str, x: float, y: float, height: float, text: str) -> list[str]:
+    safe = text.encode("ascii", errors="replace").decode("ascii")
+    return ["  0", "TEXT", "  8", layer,
+            " 10", f"{x:.1f}", " 20", f"{y:.1f}", " 30", "0.0",
+            " 40", f"{height:.1f}", "  1", safe]
+
+
 def _write_placeholder_dxf(path: Path, project: dict[str, Any]) -> None:
-    """Write a valid DXF R12 (AC1009) placeholder file that AutoCAD can open."""
-    project_name = project["name"].replace("\n", " ").replace("(", "").replace(")", "")[:60]
-    title_text = f"{project_name} - concept placeholder"
+    """Write a valid DXF R12 (AC1009) placeholder with title block and grid."""
+    name   = project["name"].encode("ascii", errors="replace").decode("ascii")[:40]
+    client = project.get("client", "").encode("ascii", errors="replace").decode("ascii")[:40]
+    auth   = project.get("authority", "").encode("ascii", errors="replace").decode("ascii")[:40]
+    btype  = project.get("building_type", "").encode("ascii", errors="replace").decode("ascii")[:40]
+    from datetime import date
+    today  = date.today().isoformat()
+
+    # Drawing area: 12000 x 8000 mm  |  Title block: 12000 wide x 1500 tall below drawing
+    DW, DH = 12000.0, 8000.0   # drawing extents
+    TB = 1500.0                # title block height
+    GS = 3000.0                # grid spacing
+
+    entities: list[str] = []
+
+    # --- Outer border (drawing area) ---
+    for seg in [
+        (0, 0, DW, 0), (DW, 0, DW, DH), (DH, DW, 0, DH), (0, DH, 0, 0),
+    ]:
+        pass
+    entities += _dxf_line("A-BORDER", 0, 0, DW, 0)
+    entities += _dxf_line("A-BORDER", DW, 0, DW, DH)
+    entities += _dxf_line("A-BORDER", DW, DH, 0, DH)
+    entities += _dxf_line("A-BORDER", 0, DH, 0, 0)
+
+    # --- Grid lines (reference grid every 3 m) ---
+    x = GS
+    while x < DW:
+        entities += _dxf_line("A-GRID", x, 0, x, DH)
+        entities += _dxf_text("A-GRID", x - 100, -400, 200, f"{x/1000:.0f}m")
+        x += GS
+    y = GS
+    while y < DH:
+        entities += _dxf_line("A-GRID", 0, y, DW, y)
+        entities += _dxf_text("A-GRID", -600, y - 100, 200, f"{y/1000:.0f}m")
+        y += GS
+
+    # --- Building outline (dashed inner box, 500 mm setback) ---
+    SB = 500.0
+    entities += _dxf_line("A-WALL", SB, SB, DW - SB, SB)
+    entities += _dxf_line("A-WALL", DW - SB, SB, DW - SB, DH - SB)
+    entities += _dxf_line("A-WALL", DW - SB, DH - SB, SB, DH - SB)
+    entities += _dxf_line("A-WALL", SB, DH - SB, SB, SB)
+
+    # --- Centre cross marker ---
+    CX, CY = DW / 2, DH / 2
+    entities += _dxf_line("A-ANNO", CX - 500, CY, CX + 500, CY)
+    entities += _dxf_line("A-ANNO", CX, CY - 500, CX, CY + 500)
+    entities += _dxf_text("A-ANNO", CX + 150, CY + 150, 200, "CL")
+
+    # --- Placeholder note in centre ---
+    entities += _dxf_text("A-ANNO", CX - 2000, CY + 300, 300, "** CONCEPT PLACEHOLDER **")
+    entities += _dxf_text("A-ANNO", CX - 2800, CY - 100, 220, "Replace with actual floor plan from architect")
+
+    # --- Title block ---
+    TY = -TB       # title block sits below y=0
+    entities += _dxf_line("A-TITLE", 0, 0, DW, 0)
+    entities += _dxf_line("A-TITLE", 0, TY, DW, TY)
+    entities += _dxf_line("A-TITLE", 0, 0, 0, TY)
+    entities += _dxf_line("A-TITLE", DW, 0, DW, TY)
+    # Vertical divider at 8000 from left
+    entities += _dxf_line("A-TITLE", 8000, 0, 8000, TY)
+    # Horizontal divider in right cell
+    entities += _dxf_line("A-TITLE", 8000, TY / 2, DW, TY / 2)
+
+    # Title block text
+    entities += _dxf_text("A-TITLE", 200, -350, 350, f"PROJECT: {name}")
+    entities += _dxf_text("A-TITLE", 200, -700, 250, f"CLIENT:  {client}")
+    entities += _dxf_text("A-TITLE", 200, -1000, 250, f"TYPE:    {btype}")
+    entities += _dxf_text("A-TITLE", 200, -1300, 250, f"AUTH:    {auth}")
+    entities += _dxf_text("A-TITLE", 8200, -350, 250, "DRAWN BY: AI Assistant (DRAFT)")
+    entities += _dxf_text("A-TITLE", 8200, -650, 250, f"DATE: {today}")
+    entities += _dxf_text("A-TITLE", 8200, -950, 250, "SCALE: 1:200 (concept)")
+    entities += _dxf_text("A-TITLE", 8200, -1250, 200, "** AI draft - architect review required **")
+
+    # --- Layer table with extra layers ---
+    extra_layers = [
+        ("A-BORDER", 7), ("A-GRID", 8), ("A-WALL", 1), ("A-ANNO", 3), ("A-TITLE", 4),
+    ]
+    layer_entries: list[str] = []
+    for lname, color in extra_layers:
+        layer_entries += [
+            "  0", "LAYER", "  2", lname, " 70", "0",
+            " 62", str(color), "  6", "CONTINUOUS",
+        ]
+
     lines = [
-        "  0", "SECTION",
-        "  2", "HEADER",
-        "  9", "$ACADVER",
-        "  1", "AC1009",
-        "  9", "$INSBASE",
-        " 10", "0.0",
-        " 20", "0.0",
-        " 30", "0.0",
-        "  9", "$EXTMIN",
-        " 10", "0.0",
-        " 20", "0.0",
-        " 30", "0.0",
-        "  9", "$EXTMAX",
-        " 10", "12000.0",
-        " 20", "8000.0",
-        " 30", "0.0",
-        "  9", "$LUNITS",
-        " 70", "4",
-        "  9", "$LUPREC",
-        " 70", "3",
+        "  0", "SECTION", "  2", "HEADER",
+        "  9", "$ACADVER", "  1", "AC1009",
+        "  9", "$INSBASE", " 10", "0.0", " 20", "0.0", " 30", "0.0",
+        "  9", "$EXTMIN", " 10", "-1000.0", " 20", f"{TY - 200:.1f}", " 30", "0.0",
+        "  9", "$EXTMAX", " 10", f"{DW + 200:.1f}", " 20", f"{DH + 200:.1f}", " 30", "0.0",
+        "  9", "$LUNITS", " 70", "4",
+        "  9", "$LUPREC", " 70", "3",
         "  0", "ENDSEC",
-        # TABLES
-        "  0", "SECTION",
-        "  2", "TABLES",
-        "  0", "TABLE",
-        "  2", "LTYPE",
-        " 70", "1",
-        "  0", "LTYPE",
-        "  2", "CONTINUOUS",
-        " 70", "0",
-        "  3", "Solid line",
-        " 72", "65",
-        " 73", "0",
-        " 40", "0.0",
+        "  0", "SECTION", "  2", "TABLES",
+        "  0", "TABLE", "  2", "LTYPE", " 70", "1",
+        "  0", "LTYPE", "  2", "CONTINUOUS", " 70", "0",
+        "  3", "Solid line", " 72", "65", " 73", "0", " 40", "0.0",
         "  0", "ENDTAB",
-        "  0", "TABLE",
-        "  2", "LAYER",
-        " 70", "3",
-        "  0", "LAYER",
-        "  2", "0",
-        " 70", "0",
-        " 62", "7",
-        "  6", "CONTINUOUS",
-        "  0", "LAYER",
-        "  2", "A-WALL",
-        " 70", "0",
-        " 62", "1",
-        "  6", "CONTINUOUS",
-        "  0", "LAYER",
-        "  2", "A-ANNO",
-        " 70", "0",
-        " 62", "3",
-        "  6", "CONTINUOUS",
+        "  0", "TABLE", "  2", "LAYER", " 70", str(len(extra_layers) + 1),
+        "  0", "LAYER", "  2", "0", " 70", "0", " 62", "7", "  6", "CONTINUOUS",
+    ] + layer_entries + [
         "  0", "ENDTAB",
         "  0", "ENDSEC",
-        # BLOCKS
-        "  0", "SECTION",
-        "  2", "BLOCKS",
-        "  0", "ENDSEC",
-        # ENTITIES
-        "  0", "SECTION",
-        "  2", "ENTITIES",
-        # Bottom edge
-        "  0", "LINE", "  8", "A-WALL",
-        " 10", "0.0", " 20", "0.0", " 30", "0.0",
-        " 11", "12000.0", " 21", "0.0", " 31", "0.0",
-        # Right edge
-        "  0", "LINE", "  8", "A-WALL",
-        " 10", "12000.0", " 20", "0.0", " 30", "0.0",
-        " 11", "12000.0", " 21", "8000.0", " 31", "0.0",
-        # Top edge
-        "  0", "LINE", "  8", "A-WALL",
-        " 10", "12000.0", " 20", "8000.0", " 30", "0.0",
-        " 11", "0.0", " 21", "8000.0", " 31", "0.0",
-        # Left edge
-        "  0", "LINE", "  8", "A-WALL",
-        " 10", "0.0", " 20", "8000.0", " 30", "0.0",
-        " 11", "0.0", " 21", "0.0", " 31", "0.0",
-        # Title text
-        "  0", "TEXT", "  8", "A-ANNO",
-        " 10", "500.0", " 20", "8500.0", " 30", "0.0",
-        " 40", "350.0",
-        "  1", title_text,
+        "  0", "SECTION", "  2", "BLOCKS", "  0", "ENDSEC",
+        "  0", "SECTION", "  2", "ENTITIES",
+    ] + entities + [
         "  0", "ENDSEC",
         "  0", "EOF",
         "",
     ]
+
     path.write_bytes("\r\n".join(lines).encode("ascii", errors="replace"))
 
 
