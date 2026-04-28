@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import json
 import mimetypes
+import socket
 import time
 import urllib.error
 import urllib.request
@@ -81,6 +82,8 @@ def mock_sketch_analysis(image_path: Path) -> dict[str, Any]:
 
 def _call_gemini(api_key: str, model: str, image_data: str, mime_type: str) -> dict:
     endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key.strip()}"
+    # PDF needs more processing time than images
+    request_timeout = 300 if mime_type == "application/pdf" else 120
     payload = {
         "contents": [
             {
@@ -106,7 +109,7 @@ def _call_gemini(api_key: str, model: str, image_data: str, mime_type: str) -> d
             method="POST",
         )
         try:
-            with urllib.request.urlopen(req, timeout=90) as response:
+            with urllib.request.urlopen(req, timeout=request_timeout) as response:
                 return json.loads(response.read().decode("utf-8"))
         except urllib.error.HTTPError as error:
             message = error.read().decode("utf-8", errors="replace")
@@ -116,8 +119,14 @@ def _call_gemini(api_key: str, model: str, image_data: str, mime_type: str) -> d
                 time.sleep(wait)
                 continue
             raise GeminiError(f"{model} error {error.code}: {message}", http_status=error.code) from error
-        except urllib.error.URLError as error:
-            raise GeminiError(f"Cannot reach Gemini API: {error.reason}") from error
+        except (urllib.error.URLError, socket.timeout, TimeoutError) as error:
+            reason = getattr(error, "reason", str(error))
+            if attempt < _MAX_RETRIES:
+                wait = _RETRY_DELAY_SECONDS * (2 ** (attempt - 1))
+                last_error = GeminiError(f"{model} timeout (attempt {attempt}/{_MAX_RETRIES})")
+                time.sleep(wait)
+                continue
+            raise GeminiError(f"Cannot reach Gemini API: {reason}") from error
     raise last_error or GeminiError(f"{model} failed after all retries")
 
 

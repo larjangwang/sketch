@@ -313,8 +313,10 @@ class DrawingAssistantApp(tk.Tk):
         artifact = self.store.get_artifact(selection[0])
         image_path = Path(artifact["path"])
         api_key = self.api_key_var.get().strip()
-        model = self.model_var.get().strip() or "gemini-2.5-flash"
-        self._set_ai_result("กำลังอ่าน sketch ด้วย Gemini...\n(ถ้า Gemini ยุ่งจะลองใหม่อัตโนมัติสูงสุด 3 ครั้ง)\n")
+        model = self.model_var.get().strip() or "gemini-1.5-flash"
+        is_pdf = image_path.suffix.lower() == ".pdf"
+        wait_note = "(ไฟล์ PDF ใช้เวลานานสูงสุด 5 นาที กรุณารอ)" if is_pdf else "(ถ้า Gemini ยุ่งจะลองใหม่อัตโนมัติสูงสุด 3 ครั้ง)"
+        self._set_ai_result(f"กำลังอ่าน sketch ด้วย Gemini...\n{wait_note}\n")
 
         def worker() -> None:
             try:
